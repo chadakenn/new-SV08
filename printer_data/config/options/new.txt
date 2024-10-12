@@ -1,0 +1,47 @@
+[gcode_macro M109]
+rename_existing: M109.1
+gcode:
+  SET_GCODE_VARIABLE MACRO=_KNOMI_STATUS VARIABLE=heating_nozzle VALUE=True
+  M109.1 {rawparams}
+  SET_GCODE_VARIABLE MACRO=_KNOMI_STATUS VARIABLE=heating_nozzle VALUE=False
+
+[gcode_macro M190]
+rename_existing: M190.1
+gcode:
+  SET_GCODE_VARIABLE MACRO=_KNOMI_STATUS VARIABLE=heating_bed VALUE=True
+  M190.1 {rawparams}
+  SET_GCODE_VARIABLE MACRO=_KNOMI_STATUS VARIABLE=heating_bed VALUE=False
+
+
+  [gcode_macro _KNOMI_STATUS]
+variable_homing: False
+variable_probing: False
+variable_qgling: False
+variable_heating_nozzle: False
+variable_heating_bed: False
+
+[gcode_macro QUAD_GANTRY_LEVEL]
+rename_existing: _QUAD_GANTRY_LEVEL
+gcode:
+    SET_GCODE_VARIABLE MACRO=_KNOMI_STATUS VARIABLE=qgling VALUE=True
+    # If QGL is not applied, first run a course calibration
+    {% if printer.quad_gantry_level.applied == False %}
+        _QUAD_GANTRY_LEVEL RETRY_TOLERANCE=0.0100
+    {% endif %}
+    # then perform fine QGL down to desired spec
+    # this has to be a separate macro call so the results of the above call will be visible!
+    _FINE_QUAD_GANTRY_LEVEL
+    SET_GCODE_VARIABLE MACRO=_KNOMI_STATUS VARIABLE=qgling VALUE=False
+
+[gcode_macro _FINE_QUAD_GANTRY_LEVEL]
+gcode:
+    SET_GCODE_VARIABLE MACRO=_KNOMI_STATUS VARIABLE=qgling VALUE=True
+    {% if printer.quad_gantry_level.applied == True %}
+        # go for full quality at reduced probing height
+        _QUAD_GANTRY_LEVEL HORIZONTAL_MOVE_Z=4.0  # <- set your preferred probing height here!
+    {% else %}
+        # This should never happen, just perform the full calibration using the defaults
+        {action_respond_info("Fine QGL called without calling course QGL first!")}
+        _QUAD_GANTRY_LEVEL  # default behavior, no speedup
+    {% endif %}
+    SET_GCODE_VARIABLE MACRO=_KNOMI_STATUS VARIABLE=qgling VALUE=False
